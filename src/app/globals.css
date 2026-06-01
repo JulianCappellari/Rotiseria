@@ -1,0 +1,233 @@
+@import "tailwindcss";
+
+:root {
+  --background: 210 24% 97%;
+  --foreground: 222 28% 13%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 13%;
+
+  --primary: 28 85% 45%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 204 38% 94%;
+  --secondary-foreground: 216 28% 18%;
+
+  --muted: 210 22% 94%;
+  --muted-foreground: 215 14% 44%;
+
+  --accent: 154 42% 38%;
+  --accent-foreground: 0 0% 100%;
+
+  --border: 214 18% 86%;
+  --input: 214 18% 88%;
+  --ring: 28 85% 45%;
+
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 100%;
+
+  --surface: 0 0% 100%;
+  --surface-subtle: 210 24% 98%;
+  --sidebar: 218 28% 14%;
+  --sidebar-foreground: 214 25% 88%;
+}
+
+* {
+  border-color: hsl(var(--border));
+  letter-spacing: 0;
+}
+
+html {
+  background: hsl(var(--background));
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, hsl(210 26% 98%) 0%, hsl(var(--background)) 42%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.18);
+  color: hsl(var(--foreground));
+}
+
+input,
+textarea,
+button,
+select {
+  outline-color: hsl(var(--primary));
+}
+
+/* Legacy dark/yellow utility classes mapped into the new product theme. */
+.bg-black,
+.bg-black\/40,
+.bg-black\/50,
+.bg-black\/80 {
+  background-color: hsl(var(--surface)) !important;
+}
+
+.text-yellow-50,
+.text-yellow-100,
+.text-yellow-100\/80 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.text-yellow-100\/70,
+.text-yellow-100\/60,
+.text-yellow-100\/50,
+.text-yellow-100\/40 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.text-yellow-300,
+.text-yellow-400 {
+  color: hsl(var(--primary)) !important;
+}
+
+.border-yellow-700\/30,
+.border-yellow-700\/40,
+.border-yellow-700\/60 {
+  border-color: hsl(var(--border)) !important;
+}
+
+.bg-yellow-500\/5,
+.bg-yellow-500\/10,
+.hover\:bg-yellow-500\/5:hover,
+.hover\:bg-yellow-500\/10:hover {
+  background-color: hsl(28 78% 96%) !important;
+}
+
+.bg-yellow-400,
+.bg-yellow-500 {
+  background-color: hsl(var(--primary)) !important;
+}
+
+.hover\:bg-yellow-300:hover {
+  background-color: hsl(28 85% 39%) !important;
+}
+
+.shadow-yellow-500\/5,
+.shadow-yellow-500\/20 {
+  box-shadow: 0 1px 2px hsl(222 28% 13% / 0.06) !important;
+}
+
+.rounded-xl,
+.rounded-2xl {
+  border-radius: 8px !important;
+}
+
+[data-slot="button"] {
+  min-height: 2.25rem;
+}
+
+[data-slot="table-container"] {
+  border-radius: 8px;
+}
+
+[data-slot="table"] {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+[data-slot="table-head"] {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+[data-slot="table-row"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[data-slot="table-cell"] {
+  color: hsl(var(--foreground));
+}
+
+[data-slot="select-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="popover-content"] {
+  z-index: 9999 !important;
+  background: hsl(var(--surface)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 20px 60px hsl(222 28% 13% / 0.16) !important;
+  backdrop-filter: none !important;
+}
+
+[data-slot="select-item"],
+[data-slot="dropdown-menu-item"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[data-slot="select-item"]:hover,
+[data-slot="select-item"][data-highlighted],
+[data-slot="dropdown-menu-item"]:hover,
+[data-slot="dropdown-menu-item"][data-highlighted] {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+input,
+textarea,
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"] {
+  background: hsl(var(--surface)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--input)) !important;
+  border-radius: 8px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.72) !important;
+}
+
+[data-slot="dialog-content"] {
+  background: hsl(var(--surface)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 26px 90px hsl(222 28% 13% / 0.28) !important;
+  backdrop-filter: none !important;
+}
+
+[data-slot="dialog-overlay"] {
+  background: hsl(222 28% 13% / 0.46) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+.form-panel {
+  background: hsl(var(--surface-subtle));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+@media print {
+  aside,
+  header,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  * {
+    color: black !important;
+    box-shadow: none !important;
+  }
+
+  section {
+    padding: 0 !important;
+  }
+}
