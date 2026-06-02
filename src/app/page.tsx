@@ -10,11 +10,15 @@ import { StatCard } from "@/components/layout/StatCard";
 import { DashboardCharts } from "@/features/dashboard/DashboardCharts";
 import { getDashboardSummary } from "@/features/dashboard/dashboard.service";
 import { orderStatusLabel } from "@/lib/business-labels";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { getLocalDateKey } from "@/lib/date";
 import { formatCurrency, formatDateTime } from "@/lib/formatters";
 
 export default function DashboardPage() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["dashboard"],
+  const businessDate = getLocalDateKey();
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["dashboard", businessDate],
     queryFn: getDashboardSummary,
   });
 
@@ -23,7 +27,11 @@ export default function DashboardPage() {
   }
 
   if (isError || !data) {
-    return <p className="text-sm font-medium text-red-600">Error al cargar dashboard.</p>;
+    return (
+      <p className="text-sm font-medium text-red-600">
+        {getApiErrorMessage(error, "Error al cargar dashboard.")}
+      </p>
+    );
   }
 
   return (

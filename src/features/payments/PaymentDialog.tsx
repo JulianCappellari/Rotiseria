@@ -1,29 +1,25 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { CreditCard } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import {
+  cloneElement,
+  isValidElement,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { AlertTriangle, Ban, Banknote, CheckCircle2 } from "lucide-react"
 
-import { createPayment } from "./payment.service";
-import { getApiErrorMessage } from "@/lib/api-error";
-import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api"
+import { getPaymentMethodLabel } from "@/lib/display-labels"
+import { formatCurrency, formatDateTime } from "@/lib/formatters"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/dialog"
 
 type PaymentMethod =
   | "CASH"
@@ -31,133 +27,426 @@ type PaymentMethod =
   | "DEBIT"
   | "CREDIT"
   | "QR"
-  | "MERCADO_PAGO";
+  | "MERCADO_PAGO"
 
-type Props = {
-  orderId: string;
-  disabled?: boolean;
-  suggestedAmountInCents?: number;
-};
+type Payment = {
+  id: string
+  method: PaymentMethod
+  amountInCents: number
+  paidAt?: string
+  createdAt?: string
+  status?: string
+  notes?: string | null
+  cancelReason?: string | null
+}
+
+type OrderLike = {
+  id: string
+  totalInCents: number
+  paidAmountInCents?: number | null
+  payments?: Payment[]
+}
+
+type PaymentDialogProps = {
+  orderId?: string
+  order?: OrderLike | null
+  balanceDueInCents?: number
+  pendingAmountInCents?: number
+  remainingAmountInCents?: number
+  amountDueInCents?: number
+  totalPendingInCents?: number
+  disabled?: boolean
+  children?: ReactNode
+  onSuccess?: () => void
+  [key: string]: unknown
+}
+
+const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: "CASH", label: "Efectivo" },
+  { value: "TRANSFER", label: "Transferencia" },
+  { value: "DEBIT", label: "Debito" },
+  { value: "CREDIT", label: "Credito" },
+  { value: "QR", label: "QR" },
+  { value: "MERCADO_PAGO", label: "Mercado Pago" },
+]
+
+function unwrapApiData<T>(value: unknown): T {
+  if (value && typeof value === "object" && "data" in value) {
+    return (value as { data: T }).data
+  }
+
+  return value as T
+}
+
+function toCents(value: string): number {
+  const normalized = value.replace(/\./g, "").replace(",", ".")
+  const numberValue = Number(normalized)
+
+  if (!Number.isFinite(numberValue)) {
+    return 0
+  }
+
+  return Math.round(numberValue * 100)
+}
+
+function fromCents(value: number): string {
+  return String(Math.max(0, value) / 100)
+}
+
+function getActivePayments(payments: Payment[]): Payment[] {
+  return payments.filter(
+    (payment) => String(payment.status ?? "ACTIVE").toUpperCase() !== "CANCELLED",
+  )
+}
+
+function getPaidAmountInCents(order: OrderLike | null, payments: Payment[]): number {
+  if (payments.length > 0) {
+    return getActivePayments(payments).reduce(
+      (total, payment) => total + payment.amountInCents,
+      0,
+    )
+  }
+
+  return order?.paidAmountInCents ?? 0
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const maybeResponse = error as {
+      response?: { data?: { message?: string } }
+      message?: string
+    }
+
+    return (
+      maybeResponse.response?.data?.message ??
+      maybeResponse.message ??
+      "No se pudo completar la operacion"
+    )
+  }
+
+  return "No se pudo completar la operacion"
+}
 
 export function PaymentDialog({
   orderId,
+  order,
+  balanceDueInCents,
+  pendingAmountInCents,
+  remainingAmountInCents,
+  amountDueInCents,
+  totalPendingInCents,
   disabled,
-  suggestedAmountInCents,
-}: Props) {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("CASH");
+  children,
+  onSuccess,
+}: PaymentDialogProps) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [method, setMethod] = useState<PaymentMethod>("CASH")
+  const [amount, setAmount] = useState("")
+  const [notes, setNotes] = useState("")
+  const [cancelReason, setCancelReason] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
 
-  const suggestedAmount = suggestedAmountInCents
-    ? suggestedAmountInCents / 100
-    : 0;
+  const resolvedOrderId = orderId ?? order?.id
 
-  function handleOpenChange(value: boolean) {
-    setOpen(value);
+  const orderQuery = useQuery({
+    queryKey: ["order", resolvedOrderId],
+    enabled: open && Boolean(resolvedOrderId) && !order,
+    queryFn: async () =>
+      unwrapApiData<OrderLike>(await api.get(`/orders/${resolvedOrderId}`)),
+  })
 
-    if (value && suggestedAmount > 0) {
-      setAmount(String(suggestedAmount));
+  const paymentsQuery = useQuery({
+    queryKey: ["payments", "order", resolvedOrderId],
+    enabled: open && Boolean(resolvedOrderId),
+    queryFn: async () =>
+      unwrapApiData<Payment[]>(await api.get(`/payments/order/${resolvedOrderId}`)),
+  })
+
+  const resolvedOrder = order ?? orderQuery.data ?? null
+  const payments = paymentsQuery.data ?? resolvedOrder?.payments ?? []
+  const paidAmountInCents = getPaidAmountInCents(resolvedOrder, payments)
+  const knownBalanceInCents =
+    balanceDueInCents ??
+    pendingAmountInCents ??
+    remainingAmountInCents ??
+    amountDueInCents ??
+    totalPendingInCents
+  const balanceInCents =
+    knownBalanceInCents ??
+    Math.max(0, (resolvedOrder?.totalInCents ?? 0) - paidAmountInCents)
+  const paymentAmountInCents = useMemo(() => toCents(amount), [amount])
+  const remainingAfterPaymentInCents = Math.max(
+    0,
+    balanceInCents - paymentAmountInCents,
+  )
+  const canSubmit =
+    Boolean(resolvedOrderId) &&
+    paymentAmountInCents > 0 &&
+    paymentAmountInCents <= balanceInCents
+
+  const refreshQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["orders"] })
+    queryClient.invalidateQueries({ queryKey: ["order", resolvedOrderId] })
+    queryClient.invalidateQueries({ queryKey: ["payments"] })
+    queryClient.invalidateQueries({ queryKey: ["payments", "order", resolvedOrderId] })
+    queryClient.invalidateQueries({ queryKey: ["cash"] })
+    queryClient.invalidateQueries({ queryKey: ["cash-sessions"] })
+  }
+
+  const createPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!resolvedOrderId) {
+        throw new Error("Pedido no encontrado")
+      }
+
+      return api.post("/payments", {
+        orderId: resolvedOrderId,
+        method,
+        amountInCents: paymentAmountInCents,
+        notes: notes.trim() || undefined,
+      })
+    },
+    onSuccess: () => {
+      setAmount("")
+      setNotes("")
+      setErrorMessage("")
+      refreshQueries()
+      onSuccess?.()
+    },
+    onError: (error) => setErrorMessage(getErrorMessage(error)),
+  })
+
+  const cancelPaymentMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      return api.patch(`/payments/${paymentId}/cancel`, {
+        reason: cancelReason.trim() || "Cancelado manualmente",
+      })
+    },
+    onSuccess: () => {
+      setCancelReason("")
+      setErrorMessage("")
+      refreshQueries()
+      onSuccess?.()
+    },
+    onError: (error) => setErrorMessage(getErrorMessage(error)),
+  })
+
+  const openDialog = () => {
+    if (!disabled) {
+      setOpen(true)
+      setAmount(fromCents(balanceInCents))
+      setErrorMessage("")
     }
   }
 
-  const mutation = useMutation({
-    mutationFn: createPayment,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["order", orderId] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      ]);
-
-      toast.success("Pago registrado");
-      setOpen(false);
-      setAmount("");
-      setMethod("CASH");
-    },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error, "No se pudo registrar el pago"));
-    },
-  });
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (!amount || Number(amount) <= 0) {
-      toast.error("Ingresá un monto válido");
-      return;
-    }
-
-    mutation.mutate({
-      orderId,
-      method,
-      amountInCents: Math.round(Number(amount) * 100),
-    });
-  }
+  const trigger = isValidElement<{ onClick?: () => void; disabled?: boolean }>(
+    children,
+  )
+    ? cloneElement(children, {
+        onClick: openDialog,
+        disabled,
+      })
+    : (
+      <Button type="button" onClick={openDialog} disabled={disabled}>
+        Registrar pago
+      </Button>
+      )
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        disabled={disabled}
-        className="inline-flex h-9 items-center gap-2 rounded-xl border border-yellow-700/40 px-3 text-sm text-yellow-300 hover:bg-yellow-500/10 disabled:opacity-40"
-      >
-        <CreditCard className="h-4 w-4" />
-        Pagar
-      </DialogTrigger>
+    <>
+      {trigger}
 
-      <DialogContent className="rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>Registrar pago</DialogTitle>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Registrar pago</DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {suggestedAmount > 0 && (
-            <div className="rounded-xl border border-yellow-700/40 bg-yellow-500/10 p-3 text-sm text-yellow-100/80">
-              Monto pendiente sugerido:{" "}
-              <strong className="text-yellow-300">
-                ${suggestedAmount.toLocaleString("es-AR")}
-              </strong>
-            </div>
-          )}
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.25fr]">
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Banknote className="h-4 w-4" aria-hidden />
+                Estado del cobro
+              </div>
 
-          <div className="grid gap-2">
-            <Label>Monto</Label>
-            <Input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={
-                suggestedAmount > 0 ? String(suggestedAmount) : "Ej: 5000"
-              }
-            />
+              <div className="mt-4 grid gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">Total pedido</span>
+                  <strong className="text-slate-950">
+                    {formatCurrency(resolvedOrder?.totalInCents ?? 0)}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">Pagado</span>
+                  <strong className="text-emerald-700">
+                    {formatCurrency(paidAmountInCents)}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-white px-3 py-2 ring-1 ring-slate-200">
+                  <span className="text-sm font-medium text-slate-700">
+                    Resta pagar
+                  </span>
+                  <strong className="text-lg text-slate-950">
+                    {formatCurrency(balanceInCents)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Metodo
+                  <select
+                    value={method}
+                    onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+                    className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                  >
+                    {PAYMENT_METHODS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Monto
+                  <input
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    inputMode="decimal"
+                    className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                  />
+                </label>
+
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Nota
+                  <textarea
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    rows={3}
+                    className="resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                  />
+                </label>
+
+                <div className="rounded-md bg-white px-3 py-2 text-sm ring-1 ring-slate-200">
+                  <span className="text-slate-500">Resta despues de este pago: </span>
+                  <strong className="text-slate-950">
+                    {formatCurrency(remainingAfterPaymentInCents)}
+                  </strong>
+                </div>
+
+                {paymentAmountInCents > balanceInCents ? (
+                  <div className="flex gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    El pago supera el saldo pendiente.
+                  </div>
+                ) : null}
+
+                {errorMessage ? (
+                  <div className="flex gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    {errorMessage}
+                  </div>
+                ) : null}
+
+                <Button
+                  type="button"
+                  onClick={() => createPaymentMutation.mutate()}
+                  disabled={!canSubmit || createPaymentMutation.isPending}
+                >
+                  {createPaymentMutation.isPending ? "Registrando..." : "Registrar pago"}
+                </Button>
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-950">
+                    Pagos del pedido
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Historial y cancelacion de cobros mal cargados.
+                  </p>
+                </div>
+                {balanceInCents <= 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                    Pagado
+                  </span>
+                ) : null}
+              </div>
+
+              <label className="mt-4 grid gap-1 text-sm font-medium text-slate-700">
+                Motivo de cancelacion
+                <input
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  placeholder="Ej: importe mal cargado"
+                  className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                />
+              </label>
+
+              <div className="mt-4 max-h-80 overflow-auto rounded-md border border-slate-200">
+                {paymentsQuery.isLoading ? (
+                  <div className="p-4 text-sm text-slate-500">Cargando pagos...</div>
+                ) : payments.length === 0 ? (
+                  <div className="p-4 text-sm text-slate-500">
+                    Este pedido todavia no tiene pagos registrados.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-200">
+                    {payments.map((payment) => {
+                      const isCancelled =
+                        String(payment.status ?? "ACTIVE").toUpperCase() === "CANCELLED"
+
+                      return (
+                        <div
+                          key={payment.id}
+                          className="grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-slate-950">
+                                {formatCurrency(payment.amountInCents)}
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                {getPaymentMethodLabel(payment.method)}
+                              </span>
+                              {isCancelled ? (
+                                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                                  Cancelado
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                              {formatDateTime(payment.paidAt ?? payment.createdAt ?? "")}
+                              {payment.notes ? ` · ${payment.notes}` : ""}
+                              {payment.cancelReason ? ` · ${payment.cancelReason}` : ""}
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => cancelPaymentMutation.mutate(payment.id)}
+                            disabled={isCancelled || cancelPaymentMutation.isPending}
+                          >
+                            <Ban className="mr-2 h-4 w-4" aria-hidden />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
-
-          <div className="grid gap-2">
-            <Label>Método</Label>
-            <Select
-              value={method}
-              onValueChange={(value) => value && setMethod(value as PaymentMethod)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-
-              <SelectContent>
-                <SelectItem value="CASH">Efectivo</SelectItem>
-                <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                <SelectItem value="DEBIT">Débito</SelectItem>
-                <SelectItem value="CREDIT">Crédito</SelectItem>
-                <SelectItem value="QR">QR</SelectItem>
-                <SelectItem value="MERCADO_PAGO">Mercado Pago</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? "Registrando..." : "Registrar pago"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }

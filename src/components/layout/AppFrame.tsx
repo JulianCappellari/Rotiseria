@@ -8,7 +8,7 @@ import { AppShell } from "./AppShell";
 export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/setup") {
     return <>{children}</>;
   }
 

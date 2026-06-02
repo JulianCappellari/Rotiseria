@@ -30,19 +30,21 @@ import { OrderCreateDialog } from "@/features/orders/OrderCreateDialog";
 import { getOrders } from "@/features/orders/order.service";
 import { PaymentDialog } from "@/features/payments/PaymentDialog";
 import { orderStatusLabel, paymentStatusLabel } from "@/lib/business-labels";
+import { getLocalDateKey } from "@/lib/date";
 import { formatCurrency, formatDateTime } from "@/lib/formatters";
 import { isOrderPayable } from "@/lib/order-utils";
 
 export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const businessDate = getLocalDateKey();
 
   const {
     data: orders = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["orders"],
+    queryKey: ["orders", businessDate],
     queryFn: getOrders,
   });
 
@@ -74,7 +76,7 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Pedidos"
-        description="Control de pedidos, estados y pagos."
+        description="Pedidos del día: estados, cobros y entregas."
         action={<OrderCreateDialog />}
       />
 
@@ -136,7 +138,7 @@ export default function OrdersPage() {
                       colSpan={8}
                       className="py-8 text-center text-slate-500"
                     >
-                      No hay pedidos cargados.
+                      No hay pedidos para hoy.
                     </TableCell>
                   </TableRow>
                 ) : (

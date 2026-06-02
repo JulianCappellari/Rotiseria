@@ -3,7 +3,12 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+function Input({
+  className,
+  onKeyDown,
+  type,
+  ...props
+}: React.ComponentProps<"input">) {
   return (
     <InputPrimitive
       type={type}
@@ -13,6 +18,13 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className
       )}
       {...props}
+      onKeyDown={(event) => {
+        onKeyDown?.(event)
+
+        if (!event.defaultPrevented && event.key !== "Escape") {
+          event.stopPropagation()
+        }
+      }}
     />
   )
 }

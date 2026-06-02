@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/table";
 import { BackupPanel } from "@/features/backups/BackupPanel";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { CashPaymentMethodBreakdown } from "@/features/cash/CashPaymentMethodBreakdown";
+import {
+  getActualCashClosingInCents,
+  getCashControlDifferenceInCents,
+  getCashDifferenceInCents,
+  getExpectedCashClosingInCents,
+} from "@/lib/cash-calculations";
 
 export default function CashPage() {
   const queryClient = useQueryClient();
@@ -144,6 +151,8 @@ export default function CashPage() {
         )}
       </SectionCard>
 
+      <CashPaymentMethodBreakdown />
+
       <SectionCard title="Historial de caja">
         {sessions.length === 0 ? (
           <EmptyState message="No hay sesiones de caja registradas." />
@@ -162,7 +171,17 @@ export default function CashPage() {
               </TableHeader>
 
               <TableBody>
-                {sessions.map((session) => (
+                {sessions.map((session) => {
+                  const expectedClosingAmountInCents =
+                    getExpectedCashClosingInCents(session);
+                  const actualClosingAmountInCents =
+                    getActualCashClosingInCents(session);
+                  const differenceInCents = getCashDifferenceInCents(session);
+                  const controlDifferenceInCents =
+                    getCashControlDifferenceInCents(session);
+
+                  return (
+                    <Fragment key={session.id}>
                   <TableRow key={session.id} className="border-yellow-700/30">
                     <TableCell>{formatDateTime(session.openedAt)}</TableCell>
                     <TableCell>
@@ -185,7 +204,57 @@ export default function CashPage() {
                         : "-"}
                     </TableCell>
                   </TableRow>
-                ))}
+                  <TableRow className="border-yellow-700/30 bg-slate-50/80">
+                    <TableCell colSpan={7}>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                        <span>
+                          Inicial:{" "}
+                          <strong className="text-slate-950">
+                            {formatCurrency(session.openingAmountInCents ?? 0)}
+                          </strong>
+                        </span>
+                        <span>
+                          Esperado:{" "}
+                          <strong className="text-slate-950">
+                            {formatCurrency(expectedClosingAmountInCents)}
+                          </strong>
+                        </span>
+                        <span>
+                          Contado:{" "}
+                          <strong className="text-slate-950">
+                            {formatCurrency(actualClosingAmountInCents)}
+                          </strong>
+                        </span>
+                        <span>
+                          Diferencia en caja:{" "}
+                          <strong
+                            className={
+                              differenceInCents >= 0
+                                ? "text-emerald-700"
+                                : "text-red-700"
+                            }
+                          >
+                            {formatCurrency(differenceInCents)}
+                          </strong>
+                        </span>
+                        <span>
+                          Control:{" "}
+                          <strong
+                            className={
+                              controlDifferenceInCents === 0
+                                ? "text-emerald-700"
+                                : "text-red-700"
+                            }
+                          >
+                            {formatCurrency(controlDifferenceInCents)}
+                          </strong>
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

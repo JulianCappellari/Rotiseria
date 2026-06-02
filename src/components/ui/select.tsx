@@ -6,7 +6,167 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+type PrimitiveSelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>
+
+type SelectRootProps<TValue extends string = string> = Omit<
+  PrimitiveSelectRootProps,
+  "defaultValue" | "onValueChange" | "value"
+> & {
+  defaultValue?: TValue | null
+  onValueChange?: (value: TValue) => void
+  value?: TValue | null
+}
+
+type SelectDisplayContextValue = {
+  labels: Record<string, string>
+  registerItem: (value: unknown, label: string) => void
+  selectedKey: string | null
+}
+
+const SelectDisplayContext =
+  React.createContext<SelectDisplayContextValue | null>(null)
+
+function getValueKey(value: unknown) {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  return String(value)
+}
+
+function getTextFromChildren(children: React.ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children)
+  }
+
+  if (Array.isArray(children)) {
+    return children
+      .map(getTextFromChildren)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+  }
+
+  if (React.isValidElement(children)) {
+    const element = children as React.ReactElement<{
+      children?: React.ReactNode
+    }>
+
+    return getTextFromChildren(element.props.children)
+  }
+
+  return ""
+}
+
+function collectSelectItemLabels(
+  children: React.ReactNode,
+  labels: Record<string, string> = {}
+) {
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) {
+      return
+    }
+
+    const element = child as React.ReactElement<{
+      children?: React.ReactNode
+      value?: unknown
+    }>
+
+    if (element.type === SelectItem) {
+      const key = getValueKey(element.props.value)
+      const label = getTextFromChildren(element.props.children)
+
+      if (key && label) {
+        labels[key] = label
+      }
+    }
+
+    collectSelectItemLabels(element.props.children, labels)
+  })
+
+  return labels
+}
+
+function Select<TValue extends string = string>({
+  value,
+  defaultValue,
+  onValueChange,
+  children,
+  ...props
+}: SelectRootProps<TValue>) {
+  const [registeredLabels, setRegisteredLabels] = React.useState<
+    Record<string, string>
+  >({})
+  const [internalValue, setInternalValue] = React.useState<TValue | null>(
+    value ?? defaultValue ?? null
+  )
+
+  const staticLabels = React.useMemo(
+    () => collectSelectItemLabels(children),
+    [children]
+  )
+
+  const selectedValue = value ?? internalValue
+  const selectedKey = getValueKey(selectedValue)
+
+  const registerItem = React.useCallback((itemValue: unknown, label: string) => {
+    const key = getValueKey(itemValue)
+
+    if (!key || !label) {
+      return
+    }
+
+    setRegisteredLabels((current) => {
+      if (current[key] === label) {
+        return current
+      }
+
+      return { ...current, [key]: label }
+    })
+  }, [])
+
+  const labels = React.useMemo(
+    () => ({ ...staticLabels, ...registeredLabels }),
+    [registeredLabels, staticLabels]
+  )
+
+  const contextValue = React.useMemo(
+    () => ({
+      labels,
+      registerItem,
+      selectedKey,
+    }),
+    [labels, registerItem, selectedKey]
+  )
+
+  const handleValueChange = React.useCallback(
+    (nextValue: unknown) => {
+      const nextKey = getValueKey(nextValue)
+
+      setInternalValue((nextKey as TValue | null) ?? null)
+
+      if (nextKey !== null) {
+        onValueChange?.(nextKey as TValue)
+      }
+    },
+    [onValueChange]
+  )
+
+  return (
+    <SelectDisplayContext.Provider value={contextValue}>
+      <SelectPrimitive.Root
+        value={value}
+        defaultValue={defaultValue}
+        onValueChange={
+          handleValueChange as PrimitiveSelectRootProps["onValueChange"]
+        }
+        {...props}
+      >
+        {children}
+      </SelectPrimitive.Root>
+    </SelectDisplayContext.Provider>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
@@ -19,6 +179,22 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
 }
 
 function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
+  const displayContext = React.useContext(SelectDisplayContext)
+  const selectedLabel = displayContext?.selectedKey
+    ? displayContext.labels[displayContext.selectedKey]
+    : undefined
+
+  if (selectedLabel) {
+    return (
+      <span
+        data-slot="select-value"
+        className={cn("flex flex-1 text-left", className)}
+      >
+        {selectedLabel}
+      </span>
+    )
+  }
+
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
@@ -113,6 +289,14 @@ function SelectItem({
   children,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const displayContext = React.useContext(SelectDisplayContext)
+  const registerItem = displayContext?.registerItem
+  const itemLabel = React.useMemo(() => getTextFromChildren(children), [children])
+
+  React.useEffect(() => {
+    registerItem?.(props.value, itemLabel)
+  }, [itemLabel, props.value, registerItem])
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
