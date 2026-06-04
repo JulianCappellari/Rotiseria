@@ -175,6 +175,16 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
   const [editing, setEditing] = useState<Record<string, Record<string, string>>>({})
   const [errorMessage, setErrorMessage] = useState("")
   const Icon = config.icon
+  const createGridClass =
+    config.fields.length > 1
+      ? "sm:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      : "sm:grid-cols-[minmax(0,1fr)_auto]"
+  const createButtonClass =
+    config.fields.length > 1 ? "sm:col-span-2 2xl:col-span-1" : ""
+  const itemGridClass =
+    config.fields.length > 1
+      ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      : "sm:grid-cols-[minmax(0,1fr)_auto]"
 
   const query = useQuery({
     queryKey: ["settings", config.id],
@@ -233,7 +243,7 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
   })
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
           <Icon className="h-5 w-5" aria-hidden />
@@ -244,9 +254,9 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-lg bg-slate-50 p-3 md:grid-cols-[1fr_1fr_auto]">
+      <div className={`mt-5 grid gap-3 rounded-lg bg-slate-50 p-3 ${createGridClass}`}>
         {config.fields.map((field) => (
-          <label key={field.key} className="grid gap-1 text-sm font-medium text-slate-700">
+          <label key={field.key} className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
             {field.label}
             <input
               value={draft[field.key] ?? ""}
@@ -257,13 +267,13 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
                 }))
               }
               placeholder={field.placeholder}
-              className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+              className="h-10 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
             />
           </label>
         ))}
         <Button
           type="button"
-          className="self-end"
+          className={`h-10 self-end ${createButtonClass}`}
           onClick={() => createMutation.mutate()}
           disabled={createMutation.isPending}
         >
@@ -290,7 +300,7 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="grid gap-3 p-3 lg:grid-cols-[1fr_1fr_auto_auto]"
+                className={`grid min-w-0 gap-2 p-3 ${itemGridClass}`}
               >
                 {config.fields.map((field) => (
                   <input
@@ -305,26 +315,33 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
                         },
                       }))
                     }
-                    className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                    className="h-10 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
                   />
                 ))}
 
-                <Button
-                  type="button"
-                  onClick={() => updateMutation.mutate(item)}
-                  disabled={updateMutation.isPending}
-                >
-                  <Save className="mr-2 h-4 w-4" aria-hidden />
-                  Guardar
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => deleteMutation.mutate(item.id)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" aria-hidden />
-                  Eliminar
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="icon"
+                    title="Guardar"
+                    aria-label="Guardar"
+                    onClick={() => updateMutation.mutate(item)}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Save className="h-4 w-4" aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    title="Eliminar"
+                    aria-label="Eliminar"
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -370,12 +387,12 @@ function BusinessSettingsSection() {
     label: string
     placeholder: string
   }> = [
-    { key: "name", label: "Nombre comercial", placeholder: "Ej: Roticeria Don Jose" },
-    { key: "taxId", label: "CUIT", placeholder: "20-00000000-0" },
-    { key: "address", label: "Direccion", placeholder: "Calle y numero" },
-    { key: "phone", label: "Telefono", placeholder: "Numero de contacto" },
-    { key: "receiptFooter", label: "Pie de ticket", placeholder: "Gracias por su compra" },
-  ]
+      { key: "name", label: "Nombre comercial", placeholder: "Ej: Rotiseria Don Jose" },
+      { key: "taxId", label: "CUIT", placeholder: "20-00000000-0" },
+      { key: "address", label: "Direccion", placeholder: "Calle y numero" },
+      { key: "phone", label: "Telefono", placeholder: "Numero de contacto" },
+      { key: "receiptFooter", label: "Pie de ticket", placeholder: "Gracias por su compra" },
+    ]
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

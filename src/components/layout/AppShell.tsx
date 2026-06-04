@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
 
-        <div className="fixed bottom-5 right-5 z-40 shadow-2xl shadow-orange-950/20">
+        <div className="fixed bottom-4 right-4 z-40 max-w-[calc(100vw-2rem)] shadow-2xl shadow-orange-950/20 sm:bottom-5 sm:right-5">
           <OrderCreateDialog />
         </div>
       </div>

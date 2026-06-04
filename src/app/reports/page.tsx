@@ -131,8 +131,9 @@ export default function ReportsPage() {
             </div>
           )}
         </SectionCard>
-        <ReportCharts report={data} />
       </div>
+
+      <ReportCharts report={data} />
     </div>
   );
 }

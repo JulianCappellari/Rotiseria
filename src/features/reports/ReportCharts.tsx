@@ -43,7 +43,7 @@ export function ReportCharts({ report }: { report: Report }) {
   }));
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       <SectionCard title="Balance general">
         <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">

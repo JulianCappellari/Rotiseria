@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { AUTH_TOKEN_KEY } from "@/features/auth/auth.storage";
+import { getStoredAuthToken } from "@/features/auth/auth.storage";
 
 function resolveApiBaseUrl() {
   // En el navegador/Electron siempre usamos el mismo origen (Next hace proxy a :4000).
@@ -25,7 +25,7 @@ api.interceptors.request.use((config) => {
     return config;
   }
 
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const token = getStoredAuthToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

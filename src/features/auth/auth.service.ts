@@ -5,6 +5,8 @@ import {
   AUTH_TOKEN_KEY,
   AUTH_USER_KEY,
   clearAuthStorage,
+  getStoredAuthToken,
+  getStoredAuthUser,
 } from "./auth.storage";
 
 type AuthResponse = {
@@ -21,7 +23,7 @@ type SetupInput = {
 };
 
 function readStoredUser(): AuthUser | null {
-  const storedUser = localStorage.getItem(AUTH_USER_KEY);
+  const storedUser = getStoredAuthUser();
 
   if (!storedUser) {
     return null;
@@ -81,7 +83,7 @@ export async function getSession(): Promise<AuthUser | null> {
     return null;
   }
 
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const token = getStoredAuthToken();
 
   if (!token) {
     clearAuthStorage();
@@ -108,7 +110,7 @@ export async function getSession(): Promise<AuthUser | null> {
 }
 
 export async function validateSession(): Promise<boolean> {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const token = getStoredAuthToken();
 
   if (!token) {
     return false;
