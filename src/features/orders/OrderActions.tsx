@@ -38,6 +38,8 @@ export function OrderActions({ orderId, currentStatus }: Props) {
         queryClient.invalidateQueries({ queryKey: ["order", orderId] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["inventory"] }),
+        queryClient.invalidateQueries({ queryKey: ["payments"] }),
+        queryClient.invalidateQueries({ queryKey: ["cash-sessions"] }),
       ]);
 
       toast.success("Estado actualizado");

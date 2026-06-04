@@ -1,4 +1,7 @@
+"use client";
+
 import { LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 type Props = {
   title: string;
@@ -8,26 +11,32 @@ type Props = {
 };
 
 const toneClasses = {
-  orange: "bg-orange-50 text-orange-700",
-  green: "bg-emerald-50 text-emerald-700",
-  blue: "bg-sky-50 text-sky-700",
-  slate: "bg-slate-100 text-slate-700",
-  red: "bg-red-50 text-red-700",
+  orange: "bg-amber-50 text-amber-600 border-amber-200/50",
+  green: "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+  blue: "bg-sky-50 text-sky-600 border-sky-200/50",
+  slate: "bg-slate-100 text-slate-600 border-slate-200/50",
+  red: "bg-red-50 text-red-600 border-red-200/50",
 };
 
 export function StatCard({ title, value, icon: Icon, tone = "orange" }: Props) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <motion.div
+      whileHover={{ y: -3, scale: 1.012 }}
+      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+      className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-soft-sm hover:shadow-soft-md transition-shadow duration-300"
+    >
+      <div className="absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-slate-100/40 blur-xl pointer-events-none" />
+
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{title}</p>
-        <div className={`flex size-9 items-center justify-center rounded-lg ${toneClasses[tone]}`}>
-          <Icon className="h-4 w-4" />
+        <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">{title}</span>
+        <div className={`flex size-10 items-center justify-center rounded-xl border ${toneClasses[tone]}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
 
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+      <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950 font-heading">
         {value}
       </p>
-    </div>
+    </motion.div>
   );
 }

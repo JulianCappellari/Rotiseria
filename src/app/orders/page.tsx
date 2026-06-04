@@ -37,7 +37,7 @@ import { isOrderPayable } from "@/lib/order-utils";
 export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const businessDate = getLocalDateKey();
+  const [businessDate, setBusinessDate] = useState(getLocalDateKey());
 
   const {
     data: orders = [],
@@ -45,7 +45,7 @@ export default function OrdersPage() {
     isError,
   } = useQuery({
     queryKey: ["orders", businessDate],
-    queryFn: getOrders,
+    queryFn: () => getOrders(businessDate),
   });
 
   if (isLoading) {
@@ -80,7 +80,14 @@ export default function OrdersPage() {
         action={<OrderCreateDialog />}
       />
 
-      <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 md:grid-cols-[180px_1fr_220px]">
+        <input
+          type="date"
+          value={businessDate}
+          onChange={(event) => setBusinessDate(event.target.value)}
+          className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none ring-orange-600 transition focus:ring-2"
+        />
+
         <SearchInput
           value={search}
           onChange={setSearch}

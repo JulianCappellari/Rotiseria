@@ -33,6 +33,7 @@ const STOCK_MOVEMENT_LABELS: Record<string, string> = {
   ADJUSTMENT: "Ajuste",
   ADJUSTMENT_IN: "Ajuste positivo",
   ADJUSTMENT_OUT: "Ajuste negativo",
+  SALE_CONSUMPTION: "Consumo por pedido",
   ORDER_CONSUMPTION: "Consumo por pedido",
   CONSUMPTION: "Consumo",
   RETURN: "Devolucion",

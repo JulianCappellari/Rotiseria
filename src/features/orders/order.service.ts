@@ -20,8 +20,10 @@ export type CreateOrderInput = {
   customerAddress?: string;
 };
 
-export async function getOrders() {
-  const response = await api.get<Order[]>("/orders");
+export async function getOrders(date?: string) {
+  const response = await api.get<Order[]>("/orders", {
+    params: { date },
+  });
   return response.data;
 }
 

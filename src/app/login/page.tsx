@@ -1,25 +1,10 @@
 "use client"
 
 import { FormEvent, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
 import { KeyRound, Lock, Store, User } from "lucide-react"
 
-import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/providers/AuthProvider"
-
-type SetupStatus = {
-  needsInitialUser?: boolean
-}
-
-function unwrapApiData<T>(value: unknown): T {
-  if (value && typeof value === "object" && "data" in value) {
-    return (value as { data: T }).data
-  }
-
-  return value as T
-}
 
 function getErrorMessage(error: unknown) {
   if (error && typeof error === "object") {
@@ -39,61 +24,32 @@ function getErrorMessage(error: unknown) {
 }
 
 export default function LoginPage() {
-  const router = useRouter()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
 
-  const setupQuery = useQuery({
-    queryKey: ["auth", "setup-status"],
-    queryFn: async () =>
-      unwrapApiData<SetupStatus>(await api.get("/auth/setup-status")),
-  })
-
-  const needsInitialUser = Boolean(setupQuery.data?.needsInitialUser)
-  const title = needsInitialUser ? "Crear usuario inicial" : "Ingresar"
-  const subtitle = needsInitialUser
-    ? "Este usuario protege la base local de esta PC."
-    : "Accede al sistema local de la rotiseria."
   const canSubmit = useMemo(() => {
-    if (!username.trim() || password.length < 6) {
-      return false
-    }
-
-    return !needsInitialUser || password === confirmPassword
-  }, [confirmPassword, needsInitialUser, password, username])
+    return username.trim().length > 0 && password.length >= 6
+  }, [password, username])
 
   const { login } = useAuth()
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage("")
 
     if (!canSubmit) {
-      setErrorMessage(
-        needsInitialUser
-          ? "Completa usuario, contraseña y confirmacion."
-          : "Completa usuario y contraseña.",
-      )
+      setErrorMessage("Completa usuario y contraseña.")
       return
     }
 
     try {
       setIsSubmitting(true)
-      if (needsInitialUser) {
-        await api.post("/auth/setup", {
-          username: username.trim(),
-          password,
-        })
-        router.replace("/")
-        router.refresh()
-      } else {
-        await login({
-          username: username.trim(),
-          password,
-        })
-      }
+      await login({
+        username: username.trim(),
+        password,
+      })
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -138,8 +94,10 @@ export default function LoginPage() {
               <KeyRound className="h-5 w-5" aria-hidden />
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+              <h2 className="text-xl font-semibold text-slate-950">Ingresar</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Accede al sistema local de la rotiseria.
+              </p>
             </div>
           </div>
 
@@ -171,7 +129,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   type="password"
-                  autoComplete={needsInitialUser ? "new-password" : "current-password"}
+                  autoComplete="current-password"
                   className="h-11 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
                 />
               </div>
@@ -179,19 +137,6 @@ export default function LoginPage() {
                 <p className="text-xs text-slate-500">Debe tener al menos 6 caracteres</p>
               )}
             </label>
-
-            {needsInitialUser ? (
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Confirmar contraseña
-                <input
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  type="password"
-                  autoComplete="new-password"
-                  className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
-                />
-              </label>
-            ) : null}
           </div>
 
           {errorMessage ? (
@@ -203,16 +148,13 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="mt-6 w-full"
-            disabled={!canSubmit || isSubmitting || setupQuery.isLoading}
+            disabled={!canSubmit || isSubmitting}
           >
-            {isSubmitting
-              ? "Procesando..."
-              : needsInitialUser
-                ? "Crear usuario"
-                : "Ingresar"}
+            {isSubmitting ? "Procesando..." : "Ingresar"}
           </Button>
         </form>
       </section>
     </main>
   )
 }
+

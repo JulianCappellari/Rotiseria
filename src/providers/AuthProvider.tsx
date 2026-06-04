@@ -3,9 +3,11 @@
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,12 +21,13 @@ import {
   setupInitialUser as setupInitialUserRequest,
   validateSession,
 } from "@/features/auth/auth.service";
+import { clearAuthStorage } from "@/features/auth/auth.storage";
 import { AuthUser } from "@/types/auth";
 
 type AuthContextValue = {
   user: AuthUser | null;
   isLoading: boolean;
-  setupRequired: boolean;
+  setupRequired: boolean | null;
   login: (data: { username: string; password: string }) => Promise<void>;
   setupInitialUser: (data: {
     businessName: string;
@@ -40,12 +43,40 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const SESSION_BOOT_TIMEOUT_MS = 6000;
 
-function SessionSplash({ message }: { message: string }) {
+function SessionSplash({
+  message,
+  fallbackHref,
+}: {
+  message: string;
+  fallbackHref?: string;
+}) {
+  const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    if (!fallbackHref) return;
+
+    const timer = window.setTimeout(() => {
+      setShowFallback(true);
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [fallbackHref]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
       <div className="w-full max-w-sm rounded-lg border border-white/10 bg-white/8 p-5 text-center shadow-2xl">
         <div className="mx-auto mb-3 h-9 w-9 animate-pulse rounded-lg bg-orange-500" />
+
         <p className="text-sm font-medium">{message}</p>
+
+        {showFallback && fallbackHref ? (
+          <a
+            href={fallbackHref}
+            className="mt-3 inline-block text-xs text-orange-400 underline hover:text-orange-300"
+          >
+            Si no redirige, haz click aqui
+          </a>
+        ) : null}
       </div>
     </div>
   );
@@ -54,122 +85,189 @@ function SessionSplash({ message }: { message: string }) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [setupRequired, setSetupRequired] = useState(false);
+  const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  const redirectingToRef = useRef<string | null>(null);
+
   const isLoginPage = pathname === "/login";
   const isSetupPage = pathname === "/setup";
+
+  const safeRedirect = useCallback(
+    (path: string) => {
+      if (pathname === path) return;
+      if (redirectingToRef.current === path) return;
+
+      redirectingToRef.current = path;
+      router.replace(path);
+    },
+    [pathname, router]
+  );
+
+  useEffect(() => {
+    if (redirectingToRef.current === pathname) {
+      redirectingToRef.current = null;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     let active = true;
 
     const timeout = window.setTimeout(() => {
-      if (active) {
-        setIsLoading(false);
-      }
+      if (!active) return;
+
+      setBootError("El backend tardó demasiado en responder.");
+      setIsLoading(false);
     }, SESSION_BOOT_TIMEOUT_MS);
 
-    getSetupStatus()
-      .then(async ({ requiresSetup }) => {
+    async function boot() {
+      try {
+        setBootError(null);
+
+        const setupStatus = await getSetupStatus();
+        const requiresSetup = Boolean(setupStatus.requiresSetup);
+
         if (!active) return;
 
         setSetupRequired(requiresSetup);
 
         if (requiresSetup) {
-          setUser(null);
+          clearAuthStorage();
           queryClient.clear();
-          return null;
+          setUser(null);
+          return;
         }
 
-        return getSession();
-      })
-      .then((sessionUser) => {
+        const sessionUser = await getSession();
+
         if (!active) return;
-        if (!sessionUser) return;
+
+        if (!sessionUser) {
+          setUser(null);
+          return;
+        }
+
+        const isValid = await validateSession();
+
+        if (!active) return;
+
+        if (!isValid) {
+          clearAuthStorage();
+          queryClient.clear();
+          setUser(null);
+          return;
+        }
 
         setUser(sessionUser);
+      } catch (error) {
+        console.error("[AuthProvider] Error al iniciar auth:", error);
 
-        if (sessionUser) {
-          void validateSession().then((isValid) => {
-            if (!active || isValid) return;
-            setUser(null);
-            queryClient.clear();
-            router.replace("/login");
-          });
-        }
-      })
-      .catch(() => {
-        if (active) setUser(null);
-      })
-      .finally(() => {
+        if (!active) return;
+
+        setUser(null);
+        setSetupRequired(null);
+        setBootError("No se pudo verificar la sesión.");
+      } finally {
         window.clearTimeout(timeout);
-        if (active) setIsLoading(false);
-      });
+
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void boot();
 
     return () => {
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [queryClient, router]);
+  }, [queryClient]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || setupRequired === null || bootError) return;
 
-    if (setupRequired && !isSetupPage) {
-      router.replace("/setup");
+    if (setupRequired) {
+      if (!isSetupPage) {
+        safeRedirect("/setup");
+      }
       return;
     }
 
-    if (setupRequired) return;
-
-    if (!user && !isLoginPage) {
-      router.replace("/login");
+    if (!setupRequired && !user) {
+      if (!isLoginPage) {
+        safeRedirect("/login");
+      }
       return;
     }
 
-    if (user && (isLoginPage || isSetupPage)) {
-      router.replace("/");
+    if (!setupRequired && user && (isLoginPage || isSetupPage)) {
+      safeRedirect("/");
     }
-  }, [isLoading, isLoginPage, isSetupPage, router, setupRequired, user]);
+  }, [
+    bootError,
+    isLoading,
+    isLoginPage,
+    isSetupPage,
+    safeRedirect,
+    setupRequired,
+    user,
+  ]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isLoading,
       setupRequired,
+
       async login(credentials) {
         const nextUser = await loginRequest(credentials);
+
         setSetupRequired(false);
         setUser(nextUser);
-        router.replace("/");
+
+        safeRedirect("/");
       },
+
       async setupInitialUser(data) {
         const nextUser = await setupInitialUserRequest(data);
+
         setSetupRequired(false);
         setUser(nextUser);
-        router.replace("/");
+        queryClient.clear();
+
+        safeRedirect("/");
       },
+
       async logout() {
         try {
           await logoutRequest();
         } finally {
+          clearAuthStorage();
           queryClient.clear();
           setUser(null);
-          router.replace("/login");
+          setSetupRequired(false);
+
+          safeRedirect("/login");
         }
       },
     }),
-    [isLoading, queryClient, router, setupRequired, user]
+    [isLoading, queryClient, safeRedirect, setupRequired, user]
   );
 
-  if (isLoginPage || isSetupPage) {
+  if (bootError) {
     return (
-      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+      <AuthContext.Provider value={value}>
+        <SessionSplash message={bootError} />
+      </AuthContext.Provider>
     );
   }
 
-  if (isLoading) {
+  if (isLoading || setupRequired === null) {
     return (
       <AuthContext.Provider value={value}>
         <SessionSplash message="Preparando la sesion..." />
@@ -177,16 +275,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user || setupRequired) {
+  if (setupRequired && !isSetupPage) {
     return (
       <AuthContext.Provider value={value}>
         <SessionSplash
-          message={
-            setupRequired
-              ? "Preparando configuracion inicial..."
-              : "Redirigiendo al login..."
-          }
+          message="Preparando configuracion inicial..."
+          fallbackHref="/setup"
         />
+      </AuthContext.Provider>
+    );
+  }
+
+  if (!setupRequired && !user && !isLoginPage) {
+    return (
+      <AuthContext.Provider value={value}>
+        <SessionSplash
+          message="Redirigiendo al login..."
+          fallbackHref="/login"
+        />
+      </AuthContext.Provider>
+    );
+  }
+
+  if (!setupRequired && user && (isLoginPage || isSetupPage)) {
+    return (
+      <AuthContext.Provider value={value}>
+        <SessionSplash message="Entrando al sistema..." />
       </AuthContext.Provider>
     );
   }

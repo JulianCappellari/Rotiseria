@@ -92,6 +92,7 @@ export default function ProductRecipePage() {
       <PageHeader
         title="Receta del producto"
         description="Definí qué insumos consume este producto al venderse."
+        backHref="/products"
       />
 
       <SectionCard

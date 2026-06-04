@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ReceiptText } from "lucide-react";
 
 import { getExpenses } from "@/features/expenses/expense.service";
 import { ExpenseCreateDialog } from "@/features/expenses/ExpenseCreateDialog";
+import { getLocalDateKey } from "@/lib/date";
 import { formatCurrency, formatDateTime } from "@/lib/formatters";
 
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -35,13 +37,14 @@ function getPaymentLabel(method?: string | null) {
 }
 
 export default function ExpensesPage() {
+  const [businessDate, setBusinessDate] = useState(getLocalDateKey());
   const {
     data: expenses = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: getExpenses,
+    queryKey: ["expenses", businessDate],
+    queryFn: () => getExpenses(businessDate),
   });
 
   if (isLoading) {
@@ -58,6 +61,13 @@ export default function ExpensesPage() {
         title="Gastos"
         description="Registrá y controlá los egresos de la rotisería."
         action={<ExpenseCreateDialog />}
+      />
+
+      <input
+        type="date"
+        value={businessDate}
+        onChange={(event) => setBusinessDate(event.target.value)}
+        className="h-10 w-full max-w-[220px] rounded-lg border border-yellow-700/40 bg-black/20 px-3 text-sm text-yellow-50 outline-none ring-yellow-500 transition focus:ring-2"
       />
 
       <SectionCard

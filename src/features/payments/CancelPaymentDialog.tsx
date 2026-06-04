@@ -38,6 +38,7 @@ export function CancelPaymentDialog({ paymentId, orderId }: Props) {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["cash-sessions"] });
 
       toast.success("Pago cancelado correctamente");

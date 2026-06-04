@@ -235,7 +235,7 @@ export function PaymentDialog({
   const openDialog = () => {
     if (!disabled) {
       setOpen(true)
-      setAmount(fromCents(balanceInCents))
+      setAmount(balanceInCents > 0 ? fromCents(balanceInCents) : "")
       setErrorMessage("")
     }
   }
@@ -258,48 +258,58 @@ export function PaymentDialog({
       {trigger}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="!w-[min(96vw,920px)] !max-w-[min(96vw,920px)] max-h-[calc(100vh-1.5rem)] overflow-hidden p-0">
           <DialogHeader>
-            <DialogTitle>Registrar pago</DialogTitle>
+            <div className="border-b border-slate-200 px-5 py-4">
+              <DialogTitle>Registrar pago</DialogTitle>
+            </div>
           </DialogHeader>
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_1.25fr]">
-            <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)] gap-0 bg-white">
+            <section className="min-w-0 border-r border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <Banknote className="h-4 w-4" aria-hidden />
                 Estado del cobro
               </div>
 
-              <div className="mt-4 grid gap-3">
-                <div className="flex items-center justify-between">
+              <div className="mt-4 grid gap-2">
+                <div className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2 ring-1 ring-slate-200">
                   <span className="text-sm text-slate-500">Total pedido</span>
                   <strong className="text-slate-950">
                     {formatCurrency(resolvedOrder?.totalInCents ?? 0)}
                   </strong>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2 ring-1 ring-slate-200">
                   <span className="text-sm text-slate-500">Pagado</span>
                   <strong className="text-emerald-700">
                     {formatCurrency(paidAmountInCents)}
                   </strong>
                 </div>
-                <div className="flex items-center justify-between rounded-md bg-white px-3 py-2 ring-1 ring-slate-200">
-                  <span className="text-sm font-medium text-slate-700">
+                <div className="flex items-center justify-between gap-3 rounded-md bg-slate-950 px-3 py-3 text-white">
+                  <span className="text-sm font-medium text-slate-300">
                     Resta pagar
                   </span>
-                  <strong className="text-lg text-slate-950">
+                  <strong className="text-xl">
                     {formatCurrency(balanceInCents)}
                   </strong>
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3">
+              {balanceInCents <= 0 ? (
+                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
+                  Este pedido ya está pagado por completo. Podés revisar o cancelar
+                  pagos desde el historial.
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-2.5">
                 <label className="grid gap-1 text-sm font-medium text-slate-700">
                   Metodo
                   <select
                     value={method}
                     onChange={(event) => setMethod(event.target.value as PaymentMethod)}
-                    className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                    disabled={balanceInCents <= 0}
+                    className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
                   >
                     {PAYMENT_METHODS.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -315,7 +325,8 @@ export function PaymentDialog({
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                     inputMode="decimal"
-                    className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
+                    disabled={balanceInCents <= 0}
+                    className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-slate-950 transition focus:ring-2"
                   />
                 </label>
 
@@ -324,7 +335,8 @@ export function PaymentDialog({
                   <textarea
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
-                    rows={3}
+                    rows={2}
+                    disabled={balanceInCents <= 0}
                     className="resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-slate-950 transition focus:ring-2"
                   />
                 </label>
@@ -355,19 +367,23 @@ export function PaymentDialog({
                   onClick={() => createPaymentMutation.mutate()}
                   disabled={!canSubmit || createPaymentMutation.isPending}
                 >
-                  {createPaymentMutation.isPending ? "Registrando..." : "Registrar pago"}
+                  {balanceInCents <= 0
+                    ? "Pedido pagado"
+                    : createPaymentMutation.isPending
+                      ? "Registrando..."
+                      : "Registrar pago"}
                 </Button>
               </div>
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
+            <section className="min-w-0 bg-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-950">
+                  <h3 className="text-base font-semibold text-slate-950">
                     Pagos del pedido
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    Historial y cancelacion de cobros mal cargados.
+                  <p className="max-w-md text-sm leading-5 text-slate-500">
+                    Historial de cobros y cancelaciones sin borrar movimientos.
                   </p>
                 </div>
                 {balanceInCents <= 0 ? (
@@ -388,7 +404,7 @@ export function PaymentDialog({
                 />
               </label>
 
-              <div className="mt-4 max-h-80 overflow-auto rounded-md border border-slate-200">
+              <div className="mt-4 max-h-[22rem] overflow-auto rounded-lg border border-slate-200">
                 {paymentsQuery.isLoading ? (
                   <div className="p-4 text-sm text-slate-500">Cargando pagos...</div>
                 ) : payments.length === 0 ? (
@@ -404,11 +420,11 @@ export function PaymentDialog({
                       return (
                         <div
                           key={payment.id}
-                          className="grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+                          className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
                         >
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium text-slate-950">
+                              <span className="text-base font-semibold text-slate-950">
                                 {formatCurrency(payment.amountInCents)}
                               </span>
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
@@ -420,7 +436,7 @@ export function PaymentDialog({
                                 </span>
                               ) : null}
                             </div>
-                            <p className="mt-1 truncate text-xs text-slate-500">
+                            <p className="mt-1 break-words text-xs text-slate-500">
                               {formatDateTime(payment.paidAt ?? payment.createdAt ?? "")}
                               {payment.notes ? ` · ${payment.notes}` : ""}
                               {payment.cancelReason ? ` · ${payment.cancelReason}` : ""}

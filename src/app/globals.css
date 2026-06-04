@@ -1,40 +1,68 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter), sans-serif;
+  --font-heading: var(--font-outfit), sans-serif;
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-surface: hsl(var(--surface));
+  --color-surface-subtle: hsl(var(--surface-subtle));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+
+  --shadow-soft-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-soft-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --shadow-soft-lg: 0 16px 48px rgba(0, 0, 0, 0.08);
+}
+
 :root {
-  --background: 210 24% 97%;
+  --background: 32 20% 98%;
   --foreground: 222 28% 13%;
 
   --card: 0 0% 100%;
   --card-foreground: 222 28% 13%;
 
-  --primary: 28 85% 45%;
+  --primary: 24 95% 53%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 204 38% 94%;
-  --secondary-foreground: 216 28% 18%;
+  --secondary: 32 15% 94%;
+  --secondary-foreground: 222 28% 13%;
 
-  --muted: 210 22% 94%;
+  --muted: 32 12% 93%;
   --muted-foreground: 215 14% 44%;
 
-  --accent: 154 42% 38%;
+  --accent: 142 70% 35%;
   --accent-foreground: 0 0% 100%;
 
-  --border: 214 18% 86%;
-  --input: 214 18% 88%;
-  --ring: 28 85% 45%;
+  --border: 32 12% 88%;
+  --input: 32 12% 88%;
+  --ring: 24 95% 53%;
 
-  --destructive: 0 72% 48%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
   --surface: 0 0% 100%;
-  --surface-subtle: 210 24% 98%;
-  --sidebar: 218 28% 14%;
-  --sidebar-foreground: 214 25% 88%;
+  --surface-subtle: 32 15% 96.5%;
+  --sidebar: 24 25% 9%;
+  --sidebar-foreground: 32 15% 85%;
 }
 
 * {
   border-color: hsl(var(--border));
-  letter-spacing: 0;
 }
 
 html {
@@ -44,15 +72,23 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, hsl(210 26% 98%) 0%, hsl(var(--background)) 42%),
-    hsl(var(--background));
+  background: 
+    radial-gradient(circle at 10% 20%, hsl(24 95% 50% / 0.04), transparent 30%),
+    radial-gradient(circle at 90% 80%, hsl(142 70% 35% / 0.03), transparent 35%),
+    linear-gradient(180deg, hsl(32 20% 99%) 0%, hsl(var(--background)) 100%);
+  background-attachment: fixed;
   color: hsl(var(--foreground));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-family: var(--font-sans), sans-serif;
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading), sans-serif;
+  letter-spacing: -0.02em;
 }
 
 ::selection {
-  background: hsl(var(--primary) / 0.18);
+  background: hsl(var(--primary) / 0.2);
   color: hsl(var(--foreground));
 }
 
@@ -61,6 +97,7 @@ textarea,
 button,
 select {
   outline-color: hsl(var(--primary));
+  font-family: inherit;
 }
 
 /* Legacy dark/yellow utility classes mapped into the new product theme. */
@@ -99,7 +136,7 @@ select {
 .bg-yellow-500\/10,
 .hover\:bg-yellow-500\/5:hover,
 .hover\:bg-yellow-500\/10:hover {
-  background-color: hsl(28 78% 96%) !important;
+  background-color: hsl(24 95% 53% / 0.05) !important;
 }
 
 .bg-yellow-400,
@@ -108,17 +145,19 @@ select {
 }
 
 .hover\:bg-yellow-300:hover {
-  background-color: hsl(28 85% 39%) !important;
+  background-color: hsl(24 95% 45%) !important;
 }
 
 .shadow-yellow-500\/5,
 .shadow-yellow-500\/20 {
-  box-shadow: 0 1px 2px hsl(222 28% 13% / 0.06) !important;
+  box-shadow: 0 4px 12px rgba(24, 95, 53, 0.05) !important;
 }
 
-.rounded-xl,
+.rounded-xl {
+  border-radius: 12px !important;
+}
 .rounded-2xl {
-  border-radius: 8px !important;
+  border-radius: 16px !important;
 }
 
 [data-slot="button"] {
@@ -126,7 +165,8 @@ select {
 }
 
 [data-slot="table-container"] {
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft-sm);
 }
 
 [data-slot="table"] {
@@ -139,10 +179,17 @@ select {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: hsl(var(--surface-subtle));
 }
 
 [data-slot="table-row"] {
   border-color: hsl(var(--border)) !important;
+  transition: background-color 0.15s ease;
+}
+
+[data-slot="table-row"]:hover {
+  background-color: hsl(var(--surface-subtle) / 0.5);
 }
 
 [data-slot="table-cell"] {
@@ -156,22 +203,24 @@ select {
   background: hsl(var(--surface)) !important;
   color: hsl(var(--foreground)) !important;
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 20px 60px hsl(222 28% 13% / 0.16) !important;
-  backdrop-filter: none !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-soft-lg) !important;
+  backdrop-filter: blur(8px) !important;
 }
 
 [data-slot="select-item"],
 [data-slot="dropdown-menu-item"] {
   color: hsl(var(--foreground)) !important;
+  border-radius: 8px;
+  margin: 2px 4px;
 }
 
 [data-slot="select-item"]:hover,
 [data-slot="select-item"][data-highlighted],
 [data-slot="dropdown-menu-item"]:hover,
 [data-slot="dropdown-menu-item"][data-highlighted] {
-  background: hsl(var(--muted)) !important;
-  color: hsl(var(--foreground)) !important;
+  background: hsl(var(--primary) / 0.08) !important;
+  color: hsl(var(--primary)) !important;
 }
 
 input,
@@ -182,32 +231,40 @@ textarea,
   background: hsl(var(--surface)) !important;
   color: hsl(var(--foreground)) !important;
   border: 1px solid hsl(var(--input)) !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
+  transition: all 0.15s ease;
+}
+
+input:focus,
+textarea:focus,
+[data-slot="select-trigger"]:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15) !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: hsl(var(--muted-foreground) / 0.72) !important;
+  color: hsl(var(--muted-foreground) / 0.6) !important;
 }
 
 [data-slot="dialog-content"] {
   background: hsl(var(--surface)) !important;
   color: hsl(var(--foreground)) !important;
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 26px 90px hsl(222 28% 13% / 0.28) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-soft-lg) !important;
   backdrop-filter: none !important;
 }
 
 [data-slot="dialog-overlay"] {
-  background: hsl(222 28% 13% / 0.46) !important;
-  backdrop-filter: blur(2px) !important;
+  background: hsl(222 30% 9% / 0.4) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 .form-panel {
   background: hsl(var(--surface-subtle));
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 @media print {

@@ -1,9 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Boxes, History } from "lucide-react";
+import { Boxes, History } from "lucide-react";
 
 import {
   getInventoryItem,
@@ -25,16 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { InventoryEditDialog } from "@/features/inventory/InventoryEditDialog";
-
-const movementLabels: Record<string, string> = {
-  INITIAL: "Stock inicial",
-  PURCHASE: "Compra",
-  SALE_CONSUMPTION: "Consumo por pedido",
-  ADJUSTMENT_IN: "Ajuste positivo",
-  ADJUSTMENT_OUT: "Ajuste negativo",
-  WASTE: "Desperdicio",
-  RETURN: "Devolución",
-};
+import { getStockMovementLabel } from "@/lib/display-labels";
 
 const outTypes = ["SALE_CONSUMPTION", "ADJUSTMENT_OUT", "WASTE"];
 
@@ -78,19 +68,8 @@ export default function InventoryDetailPage() {
       <PageHeader
         title={item.name}
         description="Detalle del insumo e historial completo de movimientos."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <InventoryEditDialog item={item} />
-
-            <Link
-              href="/inventory"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-yellow-700/60 px-4 text-sm font-medium text-yellow-100 hover:bg-yellow-500/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Volver
-            </Link>
-          </div>
-        }
+        backHref="/inventory"
+        action={<InventoryEditDialog item={item} />}
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -163,7 +142,7 @@ export default function InventoryDetailPage() {
 
                       <TableCell>
                         <Badge variant="outline">
-                          {movementLabels[movement.type] ?? movement.type}
+                          {getStockMovementLabel(movement.type)}
                         </Badge>
                       </TableCell>
 

@@ -5,6 +5,7 @@ import { Truck } from "lucide-react";
 
 import { getPurchases } from "@/features/purchases/purchase.service";
 import { PurchaseCreateDialog } from "@/features/purchases/PurchaseCreateDialog";
+import { getLocalDateKey } from "@/lib/date";
 import { formatCurrency, formatDateTime } from "@/lib/formatters";
 
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -24,13 +25,14 @@ import { useState } from "react";
 
 export default function PurchasesPage() {
   const [search, setSearch] = useState("");
+  const [businessDate, setBusinessDate] = useState(getLocalDateKey());
   const {
     data: purchases = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["purchases"],
-    queryFn: getPurchases,
+    queryKey: ["purchases", businessDate],
+    queryFn: () => getPurchases(businessDate),
   });
 
   if (isLoading) {
@@ -55,11 +57,19 @@ export default function PurchasesPage() {
         description="Registrá compras de insumos y actualizá stock automáticamente."
         action={<PurchaseCreateDialog />}
       />
-      <SearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar proveedor, factura o insumo..."
-      />
+      <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+        <input
+          type="date"
+          value={businessDate}
+          onChange={(event) => setBusinessDate(event.target.value)}
+          className="h-10 rounded-lg border border-yellow-700/40 bg-black/20 px-3 text-sm text-yellow-50 outline-none ring-yellow-500 transition focus:ring-2"
+        />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar proveedor, factura o insumo..."
+        />
+      </div>
 
       <SectionCard
         title="Historial de compras"

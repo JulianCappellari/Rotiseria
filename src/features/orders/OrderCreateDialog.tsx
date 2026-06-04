@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -79,6 +79,8 @@ export function OrderCreateDialog() {
     "NONE" | "EXISTING" | "QUICK"
   >("NONE");
   const [quickCustomerName, setQuickCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
@@ -89,6 +91,21 @@ export function OrderCreateDialog() {
     queryKey: ["customers"],
     queryFn: getCustomers,
   });
+
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === customerId),
+    [customerId, customers],
+  );
+
+  useEffect(() => {
+    if (customerMode !== "EXISTING" || !selectedCustomer) return;
+
+    setCustomerPhone((current) => current || selectedCustomer.phone || "");
+
+    if (fulfillmentType === "DELIVERY") {
+      setDeliveryAddress((current) => current || selectedCustomer.address || "");
+    }
+  }, [customerMode, fulfillmentType, selectedCustomer]);
 
   const filteredProducts = products
     .filter((product) => product.isActive)
@@ -115,6 +132,8 @@ export function OrderCreateDialog() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-sessions"] });
       toast.success("Pedido creado correctamente");
       setOpen(false);
       resetForm();
@@ -151,6 +170,8 @@ export function OrderCreateDialog() {
     setStockError(null);
     setCustomerMode("NONE");
     setQuickCustomerName("");
+    setCustomerPhone("");
+    setDeliveryAddress("");
     setCustomerId("NONE");
   }
 
@@ -206,10 +227,34 @@ export function OrderCreateDialog() {
       toast.error("Ingresá el nombre del cliente");
       return;
     }
+
+    if (customerMode === "EXISTING" && customerId === "NONE") {
+      toast.error("Selecciona un cliente");
+      return;
+    }
+
+    if (fulfillmentType === "DELIVERY") {
+      if (customerMode === "NONE") {
+        toast.error("Para delivery selecciona un cliente rapido o existente");
+        return;
+      }
+
+      if (!deliveryAddress.trim()) {
+        toast.error("Ingresa la direccion de entrega");
+        return;
+      }
+    }
+
     mutation.mutate({
       customerId: customerMode === "EXISTING" ? customerId : undefined,
       customerName:
         customerMode === "QUICK" ? quickCustomerName.trim() : undefined,
+      customerPhone:
+        customerMode !== "NONE" && customerPhone.trim()
+          ? customerPhone.trim()
+          : undefined,
+      customerAddress:
+        fulfillmentType === "DELIVERY" ? deliveryAddress.trim() : undefined,
       source,
       fulfillmentType,
       notes: notes || undefined,
@@ -240,9 +285,28 @@ export function OrderCreateDialog() {
                 <Label>Tipo de cliente</Label>
                 <Select
                   value={customerMode}
-                  onValueChange={(value) =>
-                    value && setCustomerMode(value as typeof customerMode)
-                  }
+                  onValueChange={(value) => {
+                    if (!value) return;
+
+                    const nextMode = value as typeof customerMode;
+                    const hasChangedMode = nextMode !== customerMode;
+
+                    setCustomerMode(nextMode);
+
+                    if (hasChangedMode) {
+                      setCustomerPhone("");
+                      setDeliveryAddress("");
+                    }
+
+                    if (nextMode !== "EXISTING") {
+                      setCustomerId("NONE");
+                    }
+
+                    if (nextMode !== "QUICK") {
+                      setQuickCustomerName("");
+                    }
+
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -250,38 +314,8 @@ export function OrderCreateDialog() {
                   <SelectContent>
                     <SelectItem value="NONE">Mostrador</SelectItem>
                     <SelectItem value="EXISTING">Cliente existente</SelectItem>
-                    <SelectItem value="QUICK">Cliente rápido</SelectItem>
+                    <SelectItem value="QUICK">Cliente rapido</SelectItem>
                   </SelectContent>
-                  {customerMode === "EXISTING" && (
-                    <div className="grid gap-2">
-                      <Label>Cliente</Label>
-                      <Select
-                        value={customerId}
-                        onValueChange={(value) => value && setCustomerId(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {customerMode === "QUICK" && (
-                    <div className="grid gap-2">
-                      <Label>Nombre del cliente</Label>
-                      <Input
-                        value={quickCustomerName}
-                        onChange={(e) => setQuickCustomerName(e.target.value)}
-                        placeholder="Ej: Juan"
-                      />
-                    </div>
-                  )}
                 </Select>
               </div>
 
@@ -309,9 +343,24 @@ export function OrderCreateDialog() {
                 <Label>Entrega</Label>
                 <Select
                   value={fulfillmentType}
-                  onValueChange={(value) =>
-                    value && setFulfillmentType(value as FulfillmentType)
-                  }
+                  onValueChange={(value) => {
+                    if (!value) return;
+
+                    const nextFulfillmentType = value as FulfillmentType;
+                    setFulfillmentType(nextFulfillmentType);
+
+                    if (
+                      nextFulfillmentType === "DELIVERY" &&
+                      customerMode === "EXISTING" &&
+                      selectedCustomer?.address
+                    ) {
+                      setDeliveryAddress(selectedCustomer.address);
+                    }
+
+                    if (nextFulfillmentType !== "DELIVERY") {
+                      setDeliveryAddress("");
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -324,6 +373,95 @@ export function OrderCreateDialog() {
                 </Select>
               </div>
             </div>
+
+            {customerMode === "EXISTING" && (
+              <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Cliente</Label>
+                  <Select
+                    value={customerId}
+                    onValueChange={(value) => {
+                      if (!value) return;
+
+                      const customer = customers.find(
+                        (item) => item.id === value,
+                      );
+
+                      setCustomerId(value);
+                      setCustomerPhone(customer?.phone || "");
+
+                      if (fulfillmentType === "DELIVERY") {
+                        setDeliveryAddress(customer?.address || "");
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Telefono</Label>
+                  <Input
+                    value={customerPhone}
+                    onChange={(event) => setCustomerPhone(event.target.value)}
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+            )}
+
+            {customerMode === "QUICK" && (
+              <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Nombre del cliente</Label>
+                  <Input
+                    value={quickCustomerName}
+                    onChange={(event) =>
+                      setQuickCustomerName(event.target.value)
+                    }
+                    placeholder="Ej: Juan Perez"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Telefono</Label>
+                  <Input
+                    value={customerPhone}
+                    onChange={(event) => setCustomerPhone(event.target.value)}
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+            )}
+
+            {fulfillmentType === "DELIVERY" && (
+              <div className="grid gap-3 rounded-xl border bg-muted/30 p-4">
+                <div className="grid gap-2">
+                  <Label>Direccion de entrega *</Label>
+                  <Input
+                    value={deliveryAddress}
+                    disabled={customerMode === "NONE"}
+                    onChange={(event) => setDeliveryAddress(event.target.value)}
+                    placeholder="Calle, numero, piso, barrio"
+                  />
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  {customerMode === "NONE"
+                    ? "Para delivery, elegi un cliente rapido o existente."
+                    : "Se va a guardar como direccion del cliente para futuros pedidos."}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-4 rounded-xl border p-4">
               <div className="grid gap-4 xl:grid-cols-[1fr_120px_auto]">
@@ -471,10 +609,11 @@ export function OrderCreateDialog() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Notas</Label>
+              <Label>Notas / indicaciones</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ej: tocar timbre, pagar con cambio, entregar en porteria"
               />
             </div>
 

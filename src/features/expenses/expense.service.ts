@@ -8,8 +8,10 @@ export type CreateExpenseInput = {
   paymentMethod?: "CASH" | "TRANSFER" | "DEBIT" | "CREDIT" | "QR" | "MERCADO_PAGO";
 };
 
-export async function getExpenses() {
-  const response = await api.get<Expense[]>("/expenses");
+export async function getExpenses(date?: string) {
+  const response = await api.get<Expense[]>("/expenses", {
+    params: { date },
+  });
   return response.data;
 }
 
@@ -20,5 +22,5 @@ export async function createExpense(data: CreateExpenseInput) {
 
 export async function getExpenseCategories() {
   const response = await api.get<ExpenseCategory[]>("/expense-categories");
-  return response.data;
+  return response.data.filter((category) => category.isActive !== false);
 }

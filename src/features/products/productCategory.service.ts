@@ -3,5 +3,5 @@ import { ProductCategory } from "@/types/product-category";
 
 export async function getProductCategories() {
   const response = await api.get<ProductCategory[]>("/product-categories");
-  return response.data;
+  return response.data.filter((category) => category.isActive !== false);
 }

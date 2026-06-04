@@ -12,8 +12,10 @@ export type CreatePurchaseInput = {
   }[];
 };
 
-export async function getPurchases() {
-  const res = await api.get<Purchase[]>("/purchases");
+export async function getPurchases(date?: string) {
+  const res = await api.get<Purchase[]>("/purchases", {
+    params: { date },
+  });
   return res.data;
 }
 

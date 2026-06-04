@@ -18,12 +18,12 @@ export const navigationItems = [
   { label: "Stock", href: "/inventory", icon: Boxes },
   { label: "Productos", href: "/products", icon: Package },
   { label: "Gastos", href: "/expenses", icon: ReceiptText },
-  { label: "Reportes", href: "/reports", icon: BarChart3 },
+  { label: "Reportes", href: "/reports", icon: BarChart3, adminOnly: true },
   { label: "Clientes", href: "/customers", icon: Users },
-  { label: "Compras", href: "/purchases", icon: Truck },
-  { label: "Proveedores", href: "/suppliers", icon: Handshake },
+  { label: "Compras", href: "/purchases", icon: Truck, adminOnly: true },
+  { label: "Proveedores", href: "/suppliers", icon: Handshake, adminOnly: true },
   { label: "Caja", href: "/cash", icon: Wallet },
-  { label: "Configuracion", href: "/settings", icon: Settings },
+  { label: "Configuracion", href: "/settings", icon: Settings, adminOnly: true },
 ];
 
 export const routeTitles: Record<string, string> = Object.fromEntries(

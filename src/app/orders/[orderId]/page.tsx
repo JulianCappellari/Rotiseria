@@ -54,11 +54,15 @@ export default function OrderDetailPage() {
   const hasDiscount =
     order.discountInCents != null && order.discountInCents > 0;
 
+  const isDeliveryOrder = order.fulfillmentType === "DELIVERY";
+  const deliveryAddress = order.customer?.address?.trim();
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Pedido #${order.orderNumber}`}
         description={`Creado el ${formatDateTime(order.createdAt)}`}
+        backHref="/orders"
         action={
           <div className="flex flex-wrap gap-2">
             <OrderEditDialog order={order} />
@@ -121,8 +125,19 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
+        {isDeliveryOrder && (
+          <div className="mt-4 rounded-xl border border-yellow-700/30 bg-black/40 p-4">
+            <p className="text-sm text-yellow-100/60">
+              Direccion de entrega
+            </p>
+            <p className="mt-1 font-medium text-yellow-50">
+              {deliveryAddress || "Sin direccion cargada"}
+            </p>
+          </div>
+        )}
+
         <div className="mt-4 rounded-xl border border-yellow-700/30 bg-black/40 p-4">
-          <p className="text-sm text-yellow-100/60">Nota del cliente</p>
+          <p className="text-sm text-yellow-100/60">Notas / indicaciones</p>
           <p className="mt-1 text-yellow-50">
             {order.notes?.trim() ? order.notes : "Sin notas"}
           </p>

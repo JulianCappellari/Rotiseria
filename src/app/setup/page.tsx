@@ -113,7 +113,7 @@ export default function SetupPage() {
                       updateField("businessName", event.target.value)
                     }
                     className="h-11 pl-9"
-                    placeholder="Ej: Roticeria Centro"
+                    placeholder="Ej: Rotiseria Centro"
                     autoFocus
                   />
                 </div>

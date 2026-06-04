@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
+import { OrderCreateDialog } from "@/features/orders/OrderCreateDialog";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -13,6 +14,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-5 md:px-6 lg:px-8">
           {children}
         </main>
+
+        <div className="fixed bottom-5 right-5 z-40 shadow-2xl shadow-orange-950/20">
+          <OrderCreateDialog />
+        </div>
       </div>
     </div>
   );

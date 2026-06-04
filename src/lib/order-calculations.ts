@@ -49,11 +49,16 @@ export function getOrderStatusCounts(orders: OrderLike[]) {
 }
 
 export function getOrdersTotalSoldInCents(orders: OrderLike[]) {
-  return orders.reduce((total, order) => total + (order.totalInCents ?? 0), 0)
+  return orders.reduce((total, order) => {
+    if (order.status === "CANCELLED") return total
+    return total + (order.totalInCents ?? 0)
+  }, 0)
 }
 
 export function getOrdersTotalPaidInCents(orders: OrderLike[]) {
   return orders.reduce((total, order) => {
+    if (order.status === "CANCELLED") return total
+
     if (typeof order.paidAmountInCents === "number") {
       return total + order.paidAmountInCents
     }
@@ -88,5 +93,7 @@ export function getPaymentMethodBreakdown(payments: PaymentLike[]) {
 }
 
 export function getPaymentsFromOrders(orders: OrderLike[]) {
-  return orders.flatMap((order) => order.payments ?? [])
+  return orders.flatMap((order) =>
+    order.status === "CANCELLED" ? [] : order.payments ?? [],
+  )
 }

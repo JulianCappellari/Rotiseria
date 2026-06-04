@@ -3,7 +3,7 @@ import { Supplier } from "@/types/purchase";
 
 export async function getSuppliers() {
   const res = await api.get<Supplier[]>("/suppliers");
-  return res.data;
+  return res.data.filter((supplier) => supplier.isActive !== false);
 }
 
 export async function createSupplier(data: {
@@ -26,4 +26,8 @@ export async function updateSupplier(
 ) {
   const res = await api.patch<Supplier>(`/suppliers/${id}`, data);
   return res.data;
+}
+
+export async function deleteSupplier(id: string) {
+  await api.delete(`/suppliers/${id}`);
 }

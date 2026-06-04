@@ -47,11 +47,14 @@ export function ReportCharts({ report }: { report: Report }) {
       <SectionCard title="Balance general">
         <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={summaryData} margin={{ top: 20, right: 20, left: 0, bottom: 8 }}>
+            <BarChart data={summaryData} margin={{ top: 20, right: 20, left: 0, bottom: 28 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="name"
                 tick={{ fill: "#475569", fontSize: 12 }}
+                interval={0}
+                height={48}
+                tickMargin={10}
                 tickLine={false}
                 axisLine={false}
               />

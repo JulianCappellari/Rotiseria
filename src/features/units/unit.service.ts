@@ -3,5 +3,5 @@ import { Unit } from "@/types/unit";
 
 export async function getUnits() {
   const res = await api.get<Unit[]>("/units");
-  return res.data;
+  return res.data.filter((unit) => unit.isActive !== false);
 }

@@ -19,9 +19,18 @@ import { Button } from "@/components/ui/button"
 type CatalogItem = {
   id: string
   name: string
+  symbol?: string | null
+  type?: string | null
   abbreviation?: string | null
   description?: string | null
   isActive?: boolean
+}
+
+type CatalogField = {
+  key: "name" | "abbreviation" | "description" | "type"
+  apiKey?: "name" | "symbol" | "type"
+  label: string
+  placeholder: string
 }
 
 type CatalogConfig = {
@@ -30,20 +39,15 @@ type CatalogConfig = {
   description: string
   endpoint: string
   icon: LucideIcon
-  fields: Array<{
-    key: "name" | "abbreviation" | "description"
-    label: string
-    placeholder: string
-  }>
+  fields: CatalogField[]
 }
 
 type BusinessSettings = {
-  businessName?: string
-  legalName?: string
+  name?: string
   taxId?: string
   address?: string
   phone?: string
-  email?: string
+  receiptFooter?: string
 }
 
 const CATALOGS: CatalogConfig[] = [
@@ -55,7 +59,6 @@ const CATALOGS: CatalogConfig[] = [
     icon: Package,
     fields: [
       { key: "name", label: "Nombre", placeholder: "Ej: Pizzas" },
-      { key: "description", label: "Descripcion", placeholder: "Uso interno" },
     ],
   },
   {
@@ -66,7 +69,6 @@ const CATALOGS: CatalogConfig[] = [
     icon: CircleDollarSign,
     fields: [
       { key: "name", label: "Nombre", placeholder: "Ej: Servicios" },
-      { key: "description", label: "Descripcion", placeholder: "Uso interno" },
     ],
   },
   {
@@ -77,7 +79,12 @@ const CATALOGS: CatalogConfig[] = [
     icon: Ruler,
     fields: [
       { key: "name", label: "Nombre", placeholder: "Ej: Kilogramo" },
-      { key: "abbreviation", label: "Abreviatura", placeholder: "Ej: kg" },
+      {
+        key: "abbreviation",
+        apiKey: "symbol",
+        label: "Abreviatura",
+        placeholder: "Ej: kg",
+      },
     ],
   },
 ]
@@ -113,11 +120,53 @@ function getList(value: unknown): CatalogItem[] {
 }
 
 async function safeDelete(endpoint: string, id: string) {
-  try {
-    return await api.delete(`${endpoint}/${id}`)
-  } catch {
-    return api.patch(`${endpoint}/${id}`, { isActive: false })
+  return api.delete(`${endpoint}/${id}`)
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object") {
+    const response = (error as { response?: { data?: unknown }; message?: string })
+      .response
+
+    if (response?.data && typeof response.data === "object") {
+      const data = response.data as {
+        message?: string
+        errors?: Record<string, string[]>
+      }
+
+      const firstFieldError = data.errors
+        ? Object.values(data.errors).flat().find(Boolean)
+        : undefined
+
+      return firstFieldError ?? data.message ?? fallback
+    }
+
+    return (error as { message?: string }).message ?? fallback
   }
+
+  return fallback
+}
+
+function getItemValue(item: CatalogItem, field: CatalogField) {
+  const apiKey = field.apiKey ?? field.key
+  const value = item[field.key] ?? item[apiKey as keyof CatalogItem]
+  return value == null ? "" : String(value)
+}
+
+function buildCatalogPayload(
+  fields: CatalogField[],
+  values: Record<string, string>,
+) {
+  return fields.reduce<Record<string, string>>((payload, field) => {
+    const value = values[field.key]?.trim()
+
+    if (!value) {
+      return payload
+    }
+
+    payload[field.apiKey ?? field.key] = value
+    return payload
+  }, {})
 }
 
 function CatalogSection({ config }: { config: CatalogConfig }) {
@@ -143,27 +192,34 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
         throw new Error("El nombre es obligatorio")
       }
 
-      return api.post(config.endpoint, draft)
+      return api.post(config.endpoint, buildCatalogPayload(config.fields, draft))
     },
     onSuccess: () => {
       setDraft({})
       setErrorMessage("")
       queryClient.invalidateQueries({ queryKey: ["settings", config.id] })
+      queryClient.invalidateQueries({ queryKey: [config.id] })
     },
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "No se pudo crear"),
+      setErrorMessage(getErrorMessage(error, "No se pudo crear")),
   })
 
   const updateMutation = useMutation({
     mutationFn: async (item: CatalogItem) => {
       const values = editing[item.id] ?? {}
-      return api.patch(`${config.endpoint}/${item.id}`, values)
+      return api.patch(
+        `${config.endpoint}/${item.id}`,
+        buildCatalogPayload(config.fields, values),
+      )
     },
     onSuccess: () => {
       setErrorMessage("")
       queryClient.invalidateQueries({ queryKey: ["settings", config.id] })
+      queryClient.invalidateQueries({ queryKey: [config.id] })
+      queryClient.invalidateQueries({ queryKey: [config.id] })
     },
-    onError: () => setErrorMessage("No se pudo guardar el cambio"),
+    onError: (error) =>
+      setErrorMessage(getErrorMessage(error, "No se pudo guardar el cambio")),
   })
 
   const deleteMutation = useMutation({
@@ -172,7 +228,8 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
       setErrorMessage("")
       queryClient.invalidateQueries({ queryKey: ["settings", config.id] })
     },
-    onError: () => setErrorMessage("No se pudo eliminar"),
+    onError: (error) =>
+      setErrorMessage(getErrorMessage(error, "No se pudo eliminar")),
   })
 
   return (
@@ -238,7 +295,7 @@ function CatalogSection({ config }: { config: CatalogConfig }) {
                 {config.fields.map((field) => (
                   <input
                     key={field.key}
-                    value={editing[item.id]?.[field.key] ?? item[field.key] ?? ""}
+                    value={editing[item.id]?.[field.key] ?? getItemValue(item, field)}
                     onChange={(event) =>
                       setEditing((current) => ({
                         ...current,
@@ -313,12 +370,11 @@ function BusinessSettingsSection() {
     label: string
     placeholder: string
   }> = [
-    { key: "businessName", label: "Nombre comercial", placeholder: "Ej: Roticeria Don Jose" },
-    { key: "legalName", label: "Razon social", placeholder: "Nombre legal" },
+    { key: "name", label: "Nombre comercial", placeholder: "Ej: Roticeria Don Jose" },
     { key: "taxId", label: "CUIT", placeholder: "20-00000000-0" },
     { key: "address", label: "Direccion", placeholder: "Calle y numero" },
     { key: "phone", label: "Telefono", placeholder: "Numero de contacto" },
-    { key: "email", label: "Email", placeholder: "correo@negocio.com" },
+    { key: "receiptFooter", label: "Pie de ticket", placeholder: "Gracias por su compra" },
   ]
 
   return (

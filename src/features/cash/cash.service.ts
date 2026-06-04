@@ -12,7 +12,9 @@ export async function getOpenCashSession() {
 }
 
 export async function openCashSession(data: {
+  openedByName: string;
   openingAmountInCents: number;
+  openingAmountsInCents?: Record<string, number>;
   notes?: string;
 }) {
   const res = await api.post<CashSession>("/cash-sessions/open", data);
@@ -20,7 +22,9 @@ export async function openCashSession(data: {
 }
 
 export async function closeCashSession(id: string, data: {
+  closedByName: string;
   closingAmountInCents: number;
+  closingAmountsInCents?: Record<string, number>;
   notes?: string;
 }) {
   const res = await api.patch<CashSession>(`/cash-sessions/${id}/close`, data);
